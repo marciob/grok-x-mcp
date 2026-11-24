@@ -27,7 +27,7 @@ One search takes 20 to 40 seconds. If it takes longer, the tool gives a `req_id`
 |---|---|
 | Grok Bot, with its X connector | It does the search. Grok Bot comes with X Premium, Super and Ultra. |
 | A machine that stays on, with Node.js 22 or later | It runs the server. A small VPS is the easy choice. Your own computer also works while it is on. |
-| A public https address for that machine | Your chat app and the routine must reach the server. Tailscale Funnel and cloudflared are free, and need no domain. |
+| A public https address on port 443 for that machine | Your chat app and the routine must reach the server. A Grok Bot routine reaches only port 443, so do not use another port. Tailscale Funnel and cloudflared are free, and need no domain. |
 | A chat app that takes a custom MCP connector | ChatGPT, Claude or Gemini. Check that your plan allows custom connectors. |
 
 You do not need a database, an X API key, or a GitHub or Google app.
@@ -74,6 +74,8 @@ The server listens on `127.0.0.1:7815`. Put an https proxy or a tunnel in front 
 - `/.well-known/oauth-protected-resource<route>`
 - `/.well-known/oauth-authorization-server<route>`
 - `/.well-known/openid-configuration<route>`
+
+Use port 443. A Grok Bot routine cannot reach another port (such as 8443 or 10000): its POST fails with a TLS error, and no result arrives.
 
 With Tailscale Funnel, for each path above:
 

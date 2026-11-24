@@ -27,7 +27,11 @@ export function loadConfig(env = process.env, { needRoutine = true } = {}) {
   if (!env.PUBLIC_URL) throw new Error("set PUBLIC_URL: the https address of the MCP endpoint, such as https://host.example/7f3a9c...");
   let publicUrl = env.PUBLIC_URL.replace(/\/+$/, "");
   const u = new URL(publicUrl);
-  if (u.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(u.hostname)) throw new Error("PUBLIC_URL must start with https://");
+  const local = ["localhost", "127.0.0.1"].includes(u.hostname);
+  if (u.protocol !== "https:" && !local) throw new Error("PUBLIC_URL must start with https://");
+  // Grok Bot runs reach only port 443: a callback on another port fails with
+  // a TLS error on their side, and the search result never arrives.
+  if (u.port && !local) throw new Error(`PUBLIC_URL uses port ${u.port}. Use the default https port (443): a Grok Bot routine cannot reach another port.`);
   let route = u.pathname.replace(/\/+$/, "");
   if (!route) {
     route = "/mcp";

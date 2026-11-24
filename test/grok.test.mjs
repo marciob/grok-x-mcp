@@ -151,3 +151,10 @@ test("the tool schema stays plain, for clients such as Gemini", async () => {
   const s = JSON.stringify(r.result.tools[0].inputSchema);
   for (const bad of ["anyOf", "$ref", "additionalProperties", "oneOf"]) assert.ok(!s.includes(bad), bad);
 });
+
+test("the configuration refuses a PUBLIC_URL on a port other than 443", async () => {
+  const { loadConfig } = await import("../src/config.mjs");
+  const env = { PUBLIC_URL: "https://host.example:10000/r", GROK_ROUTINE_URL: "https://routine.test/h", GROK_ROUTINE_KEY: "k", APPROVAL_SECRET: "s".repeat(20) };
+  assert.throws(() => loadConfig(env), /port 10000.*443/);
+  assert.equal(loadConfig({ ...env, PUBLIC_URL: "https://host.example/r" }).callbackUrl, "https://host.example/r/callback");
+});

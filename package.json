@@ -1,0 +1,15 @@
+{
+  "name": "grok-x-mcp",
+  "version": "0.1.0",
+  "description": "Search X from ChatGPT, Claude or Gemini through your own Grok Bot. A self-hosted MCP server with no dependencies.",
+  "type": "module",
+  "private": true,
+  "bin": { "grok-x-mcp": "bin/grok-x-mcp.mjs" },
+  "engines": { "node": ">=22" },
+  "license": "MIT",
+  "keywords": ["mcp", "model-context-protocol", "x", "twitter", "grok", "grok-bot"],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "start": "node bin/grok-x-mcp.mjs serve"
+  }
+}

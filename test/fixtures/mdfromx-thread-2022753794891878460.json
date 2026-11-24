@@ -1,0 +1,168 @@
+{
+ "posts": [
+  {
+   "type": "status",
+   "url": "https://x.com/heymakio/status/2022753794891878460",
+   "id": "2022753794891878460",
+   "text": "Proposed protocol: Shared Public Cache for Social Data (X, Instagram, Facebook, etc.)\n\nToday, if 1,000 developers fetch the same public post, the platform is queried 1,000 times, whether through the official API or third-party tools (eg. Apify).\n\nWhat if the first successful fetch populated a shared cache layer?\n\nSubsequent requests for that same public data could be served from the cache instead of triggering another upstream call.\n\nIn theory, this coordination layer alone could reduce data access costs by 10x+.",
+   "raw_text": {
+    "text": "Proposed protocol: Shared Public Cache for Social Data (X, Instagram, Facebook, etc.)\n\nToday, if 1,000 developers fetch the same public post, the platform is queried 1,000 times, whether through the official API or third-party tools (eg. Apify).\n\nWhat if the first successful fetch populated a shared cache layer?\n\nSubsequent requests for that same public data could be served from the cache instead of triggering another upstream call.\n\nIn theory, this coordination layer alone could reduce data access costs by 10x+.",
+    "display_text_range": [
+     0,
+     518
+    ],
+    "facets": [
+     {
+      "type": "bold",
+      "indices": [
+       0,
+       85
+      ]
+     }
+    ]
+   },
+   "author": {
+    "screen_name": "heymakio",
+    "url": "https://x.com/heymakio",
+    "id": "1179046750126039041",
+    "followers": 772,
+    "following": 1508,
+    "likes": 7727,
+    "media_count": 666,
+    "statuses": 6046,
+    "name": "tech explorer",
+    "description": "builder\ncrypto class: 2017",
+    "raw_description": {
+     "text": "builder\ncrypto class: 2017",
+     "facets": []
+    },
+    "location": "Incredible Universe",
+    "banner_url": "https://pbs.twimg.com/profile_banners/1179046750126039041/1795226212",
+    "avatar_url": "https://pbs.twimg.com/profile_images/1645316877525327872/ZTyttRlJ_200x200.jpg",
+    "joined": "Tue Oct 01 14:54:11 +0000 2019",
+    "protected": false,
+    "website": null,
+    "verification": {
+     "verified": true,
+     "verified_at": null,
+     "type": "individual"
+    },
+    "type": "profile"
+   },
+   "replies": 1,
+   "reposts": 0,
+   "likes": 0,
+   "bookmarks": 0,
+   "quotes": 0,
+   "embed_card": "tweet",
+   "created_at": "Sat Feb 14 19:24:20 +0000 2026",
+   "created_timestamp": 1771097060,
+   "views": 50,
+   "is_note_tweet": true,
+   "community_note": null,
+   "lang": "en",
+   "replying_to": null,
+   "provider": "twitter",
+   "reposted_by": null,
+   "retweets": 0,
+   "context": "post"
+  },
+  {
+   "type": "status",
+   "url": "https://x.com/heymakio/status/2022753797185913015",
+   "id": "2022753797185913015",
+   "text": "Example using X:\n\nUser A requests Tweet data \u2192 fetched from X API \u2192 cached.\n\nLater, User B requests the same Tweet data \u2192 served from the shared cache instead of querying X again.\n\nOnly one upstream request. Multiple downstream consumers.\nMarginal cost trends toward zero.",
+   "raw_text": {
+    "text": "Example using X:\n\nUser A requests Tweet data \u2192 fetched from X API \u2192 cached.\n\nLater, User B requests the same Tweet data \u2192 served from the shared cache instead of querying X again.\n\nOnly one upstream request. Multiple downstream consumers.\nMarginal cost trends toward zero. https://t.co/TfzNLi73GF",
+    "display_text_range": [
+     0,
+     272
+    ],
+    "facets": [
+     {
+      "type": "media",
+      "indices": [
+       273,
+       296
+      ],
+      "id": "2022753740504379392",
+      "display": "pic.x.com/TfzNLi73GF",
+      "original": "https://t.co/TfzNLi73GF",
+      "replacement": "https://x.com/heymakio/status/2022753797185913015/photo/1"
+     }
+    ]
+   },
+   "author": {
+    "screen_name": "heymakio",
+    "url": "https://x.com/heymakio",
+    "id": "1179046750126039041",
+    "followers": 772,
+    "following": 1508,
+    "likes": 7727,
+    "media_count": 666,
+    "statuses": 6046,
+    "name": "tech explorer",
+    "description": "builder\ncrypto class: 2017",
+    "raw_description": {
+     "text": "builder\ncrypto class: 2017",
+     "facets": []
+    },
+    "location": "Incredible Universe",
+    "banner_url": "https://pbs.twimg.com/profile_banners/1179046750126039041/1795226212",
+    "avatar_url": "https://pbs.twimg.com/profile_images/1645316877525327872/ZTyttRlJ_200x200.jpg",
+    "joined": "Tue Oct 01 14:54:11 +0000 2019",
+    "protected": false,
+    "website": null,
+    "verification": {
+     "verified": true,
+     "verified_at": null,
+     "type": "individual"
+    },
+    "type": "profile"
+   },
+   "replies": 0,
+   "reposts": 0,
+   "likes": 0,
+   "bookmarks": 0,
+   "quotes": 0,
+   "embed_card": "summary_large_image",
+   "created_at": "Sat Feb 14 19:24:20 +0000 2026",
+   "created_timestamp": 1771097060,
+   "possibly_sensitive": false,
+   "views": 51,
+   "is_note_tweet": false,
+   "community_note": null,
+   "lang": "en",
+   "replying_to": {
+    "screen_name": "heymakio",
+    "status": "2022753794891878460",
+    "url": "https://x.com/heymakio/status/2022753794891878460",
+    "profile_url": "https://x.com/heymakio"
+   },
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "id": "2022753740504379392",
+      "url": "https://pbs.twimg.com/media/HBJDz1rbMAAwjQh.jpg?name=orig",
+      "width": 1502,
+      "height": 1196
+     }
+    ],
+    "photos": [
+     {
+      "type": "photo",
+      "id": "2022753740504379392",
+      "url": "https://pbs.twimg.com/media/HBJDz1rbMAAwjQh.jpg?name=orig",
+      "width": 1502,
+      "height": 1196
+     }
+    ]
+   },
+   "provider": "twitter",
+   "reposted_by": null,
+   "retweets": 0,
+   "context": "thread"
+  }
+ ]
+}

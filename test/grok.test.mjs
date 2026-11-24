@@ -158,3 +158,28 @@ test("the configuration refuses a PUBLIC_URL on a port other than 443", async ()
   assert.throws(() => loadConfig(env), /port 10000.*443/);
   assert.equal(loadConfig({ ...env, PUBLIC_URL: "https://host.example/r" }).callbackUrl, "https://host.example/r/callback");
 });
+
+test("x_search keeps the media of v2 posts, and images: true attaches the photo", async () => {
+  let app;
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9]);
+  const fetch = async (url, init) => {
+    if (String(url).startsWith("https://pbs.twimg.com/media/P1?")) return new Response(jpeg, { headers: { "content-type": "image/jpeg" } });
+    const body = JSON.parse(init.body);
+    setTimeout(() => app.grok.callback({ url: new URL(body.callback_url), body: JSON.stringify({
+      type: "x_search_result", req_id: body.req_id, ok: true,
+      results: [{ q: "x", ok: true,
+        data: [{ id: "9", text: "look", author_id: "u1", attachments: { media_keys: ["3_1"] }, public_metrics: { like_count: 1 } }, { id: "8", text: "plain", author_id: "u1" }],
+        includes: { users: [{ id: "u1", username: "alice" }], media: [{ media_key: "3_1", type: "photo", url: "https://pbs.twimg.com/media/P1.jpg", width: 800, height: 600, alt_text: "A cat" }] },
+        meta: {} }],
+    }) }), 5);
+    return new Response("{}");
+  };
+  app = createApp({ config: { routineUrl: "https://routine.test/hook", routineKey: "k", callbackUrl: "https://me.test/r/callback", maxPerHour: 5 }, fetch, waitMs: 300 });
+  const call = async (args) => (await app.server.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "x_search", arguments: args } })).result;
+  const r = await call({ query: "x", images: true });
+  assert.equal(r.isError, false, r.content[0].text);
+  assert.match(r.content[0].text, /media 1: photo 800x600 https:\/\/pbs\.twimg\.com\/media\/P1\.jpg\?name=orig · alt: "A cat" · attached as image 1/);
+  assert.deepEqual(r.content[1], { type: "image", data: jpeg.toString("base64"), mimeType: "image/jpeg" });
+  const t = await call({ query: "x" });
+  assert.equal(t.content.length, 1);
+});

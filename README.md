@@ -21,6 +21,8 @@ Grok Bot has no API for its X search. Only the model of the Bot can call it. A G
 
 One search takes 20 to 40 seconds. If it takes longer, the tool gives a `req_id`, and the chat app asks again.
 
+Each post comes with its media: type, size, direct URL and the author's alt text ("none" when there is none). With `images: true`, the tool also attaches up to 4 photos (or video posters) as images, at most 1 MB each and 3 MB in total. A photo that fails to download becomes a note, and the text stays.
+
 ## What you need
 
 | Item | Why |

@@ -17,6 +17,7 @@
 // - https://docs.x.ai/grok-bot/skills-routines-and-automations
 // - https://docs.x.com/x-api/posts/search/introduction (the v2 query operators)
 import crypto from "node:crypto";
+import { fromV2Media } from "./media.mjs";
 
 const KEEP_MS = 15 * 60_000;
 const EXPIRES_MS = 5 * 60_000;
@@ -60,7 +61,7 @@ export function toV2(query, now = Date.now()) {
 }
 
 // One X API v2 post, with its author from includes.users, as a flat object.
-export function flatPost(p, users) {
+export function flatPost(p, users, media = []) {
   const u = users.find((x) => x.id === p.author_id) ?? {};
   const m = p.public_metrics ?? {};
   return {
@@ -76,6 +77,7 @@ export function flatPost(p, users) {
     quotes: m.quote_count,
     views: m.impression_count,
     lang: p.lang,
+    media: fromV2Media(p, media),
   };
 }
 
@@ -161,7 +163,7 @@ export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 6
     const res = r.result?.results?.[0];
     if (!r.result?.ok || !res?.ok) return { status: "error", error: [res?.error ?? r.result?.error ?? "unknown error", res?.detail ?? r.result?.detail].filter(Boolean).join(": ") };
     const users = res.includes?.users ?? [];
-    const posts = (Array.isArray(res.data) ? res.data : []).map((p) => flatPost(p, users)).filter((p) => (p.likes ?? 0) >= r.minFaves);
+    const posts = (Array.isArray(res.data) ? res.data : []).map((p) => flatPost(p, users, res.includes?.media ?? [])).filter((p) => (p.likes ?? 0) >= r.minFaves);
     return { status: "done", posts, cursor: res.meta?.next_token ?? null };
   }
 

@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import { createServer, ToolError } from "./rpc.mjs";
 import { createGrok } from "./grok.mjs";
+import { mediaLines, fetchImages, IMAGE_LIMITS } from "./media.mjs";
 
 export function packageVersion() {
   try {
@@ -23,15 +24,19 @@ const INSTRUCTIONS =
 
 const num = (n) => (n === undefined || n === null ? "?" : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
-export function formatPost(p) {
+export function formatPost(p, attached) {
   const counts = [`${num(p.likes)} likes`, `${num(p.reposts)} reposts`, `${num(p.replies)} replies`, ...(p.views !== undefined && p.views !== null ? [`${num(p.views)} views`] : [])].join(" · ");
-  return `@${p.author ?? "?"}${p.name ? ` (${p.name})` : ""} · ${p.date ?? "?"} · ${counts}\n  ${String(p.text ?? "").replace(/\s+/g, " ").trim()}\n  ${p.url}`;
+  return [`@${p.author ?? "?"}${p.name ? ` (${p.name})` : ""} · ${p.date ?? "?"} · ${counts}`, `  ${String(p.text ?? "").replace(/\s+/g, " ").trim()}`, ...mediaLines(p.media, attached), `  ${p.url}`].join("\n");
 }
 
-function format(r, query) {
+// Text first, then the images. An image that fails becomes a note, and the text stays.
+async function format(r, query, images, fetchImpl) {
   if (!r.posts.length) return `No posts found${query ? ` for "${query}"` : ""}.`;
-  const next = r.cursor ? `\nNext page: call x_search with the same query and cursor "${r.cursor}".` : "";
-  return `${r.posts.length} posts:\n${r.posts.map(formatPost).join("\n")}${next}`;
+  let att = { images: [], attached: new Map(), notes: [] };
+  if (images && r.posts.some((p) => p.media?.length)) att = await fetchImages(r.posts, { maxImages: IMAGE_LIMITS.maxImages }, fetchImpl);
+  const next = r.cursor ? `Next page: call x_search with the same query and cursor "${r.cursor}".` : "";
+  const body = [`${r.posts.length} posts:`, ...r.posts.map((p) => formatPost(p, att.attached)), ...att.notes, next].filter(Boolean).join("\n");
+  return { content: [{ type: "text", text: body }, ...att.images], isError: false };
 }
 
 export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }) {
@@ -49,7 +54,7 @@ export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }
     description:
       "Searches X (Twitter) posts with X search operators: from:user, to:user, @user, \"exact phrase\", OR, -word, lang:pt, " +
       "filter:replies, -filter:replies, filter:media, min_faves:N, within_time:2d, since:YYYY-MM-DD, until:YYYY-MM-DD. " +
-      "Each post line has the author, date, likes, reposts, replies, views, text and link. One search takes 20 to 40 seconds. " +
+      "Each post line has the author, date, likes, reposts, replies, views, text, media (type, size, direct URL, alt text) and link. images: true also attaches up to 4 photos as images. One search takes 20 to 40 seconds. " +
       "If the result says that the search still runs, call again with only req_id. Posts change all the time: always call this tool, and never answer from memory.",
     inputSchema: {
       type: "object",
@@ -59,17 +64,19 @@ export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }
         limit: { type: "integer", description: "Posts on one page, 10 to 25. Default 20." },
         cursor: { type: "string", description: "The cursor of an earlier result, for the next page. Use it with the same query." },
         req_id: { type: "string", description: "The req_id of a search that still runs. Give only this to get its result." },
+        images: { type: "boolean", description: "true: also attach up to 4 photos (or video posters) as images. Default false. The media URLs are always in the text." },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     async run(args) {
+      const images = args.images === true || args.images === "true";
       const reqId = typeof args.req_id === "string" && args.req_id ? args.req_id : null;
       if (reqId) {
         const r = await grok.wait(reqId, waitMs);
         if (r.status === "unknown") throw new ToolError(`No search has req_id ${reqId}. Start a new search with query.`);
         if (r.status === "pending") return `The search ${reqId} still runs. Call x_search again with req_id "${reqId}" in about 20 seconds. Do not answer from memory meanwhile.`;
         if (r.status === "error") throw new ToolError(`The search ${reqId} failed: ${r.error}`);
-        return format(r);
+        return format(r, undefined, images, fetch);
       }
       const query = typeof args.query === "string" ? args.query.trim() : "";
       if (!query) throw new ToolError('Give "query", or "req_id" of a search that still runs.');
@@ -88,7 +95,7 @@ export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }
       const r = await grok.wait(id, waitMs);
       if (r.status === "pending") return `The search still runs (req_id ${id}). Call x_search again with req_id "${id}" in about 20 seconds. Do not answer from memory meanwhile.`;
       if (r.status === "error") throw new ToolError(`The search failed: ${r.error}`);
-      return format(r, query);
+      return format(r, query, images, fetch);
     },
   };
 

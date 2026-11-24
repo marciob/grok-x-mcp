@@ -1,0 +1,137 @@
+{
+ "id_str": "2022753797185913015",
+ "full_text": "Example using X:\n\nUser A requests Tweet data \u2192 fetched from X API \u2192 cached.\n\nLater, User B requests the same Tweet data \u2192 served from the shared cache instead of querying X again.\n\nOnly one upstream request. Multiple downstream consumers.\nMarginal cost trends toward zero. https://t.co/TfzNLi73GF",
+ "tweet_created_at": "2026-02-14T19:24:20.000000Z",
+ "user": {
+  "screen_name": "heymakio",
+  "name": "tech explorer"
+ },
+ "favorite_count": 0,
+ "retweet_count": 0,
+ "reply_count": 0,
+ "views_count": 55,
+ "entities": {
+  "media": [
+   {
+    "display_url": "pic.x.com/TfzNLi73GF",
+    "expanded_url": "https://x.com/heymakio/status/2022753797185913015/photo/1",
+    "ext_media_availability": {
+     "status": "Available"
+    },
+    "features": {
+     "large": {
+      "faces": [
+       {
+        "h": 101,
+        "w": 101,
+        "x": 704,
+        "y": 422
+       }
+      ]
+     },
+     "medium": {
+      "faces": [
+       {
+        "h": 80,
+        "w": 80,
+        "x": 562,
+        "y": 337
+       }
+      ]
+     },
+     "orig": {
+      "faces": [
+       {
+        "h": 101,
+        "w": 101,
+        "x": 704,
+        "y": 422
+       }
+      ]
+     },
+     "small": {
+      "faces": [
+       {
+        "h": 45,
+        "w": 45,
+        "x": 318,
+        "y": 191
+       }
+      ]
+     }
+    },
+    "id_str": "2022753740504379392",
+    "indices": [
+     273,
+     296
+    ],
+    "media_key": "3_2022753740504379392",
+    "media_url_https": "https://pbs.twimg.com/media/HBJDz1rbMAAwjQh.jpg",
+    "original_info": {
+     "focus_rects": [
+      {
+       "h": 841,
+       "w": 1502,
+       "x": 0,
+       "y": 355
+      },
+      {
+       "h": 1196,
+       "w": 1196,
+       "x": 306,
+       "y": 0
+      },
+      {
+       "h": 1196,
+       "w": 1049,
+       "x": 453,
+       "y": 0
+      },
+      {
+       "h": 1196,
+       "w": 598,
+       "x": 864,
+       "y": 0
+      },
+      {
+       "h": 1196,
+       "w": 1502,
+       "x": 0,
+       "y": 0
+      }
+     ],
+     "height": 1196,
+     "width": 1502
+    },
+    "sizes": {
+     "large": {
+      "h": 1196,
+      "resize": "fit",
+      "w": 1502
+     },
+     "medium": {
+      "h": 956,
+      "resize": "fit",
+      "w": 1200
+     },
+     "small": {
+      "h": 541,
+      "resize": "fit",
+      "w": 680
+     },
+     "thumb": {
+      "h": 150,
+      "resize": "crop",
+      "w": 150
+     }
+    },
+    "type": "photo",
+    "url": "https://t.co/TfzNLi73GF"
+   }
+  ],
+  "display_text_range": [
+   0,
+   272
+  ]
+ }
+}

@@ -51,7 +51,7 @@ node bin/grok-x-mcp.mjs setup-prompt
 ```
 
 1. Copy the text that it prints.
-2. Paste it into a chat with your Grok Bot. The Bot makes the skill `x_search` and the routine `x_search webhook`.
+2. Paste it into a normal chat with your Grok Bot, in the app. The Bot makes the skill `x_search` and the routine `x_search webhook`. Do not send it through a routine or an automation: a routine run cannot make another routine.
 3. Open the routine in the Grok Bot desktop app. In the **Webhook** section, copy the **POST to** URL and the **key**.
 
 The routine accepts only a callback that starts with your `PUBLIC_URL`. If you change `PUBLIC_URL`, run `setup-prompt` again and give the new text to the Bot.

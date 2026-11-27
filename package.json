@@ -1,6 +1,6 @@
 {
   "name": "grok-x-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Search X from ChatGPT, Claude or Gemini through your own Grok Bot. A self-hosted MCP server with no dependencies.",
   "type": "module",
   "private": true,

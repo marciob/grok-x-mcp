@@ -5,7 +5,7 @@ Search X (Twitter) from ChatGPT, Claude or Gemini through your own Grok Bot.
 You already pay for Grok Bot. Its X connector can search X. This small server lets your chat apps use that search, with no X API account and no extra cost beyond your Grok Bot plan.
 
 - It is an MCP server that you run on your own machine or VPS.
-- It has one tool: `x_search`.
+- It has one tool: `x_search`. An optional second tool, `x_video`, reads the video of a post (off by default, see [Optional: read videos](#optional-read-videos)).
 - It has no npm dependencies. It uses only Node.js 22.
 - It has its own OAuth server, so ChatGPT, Claude and Gemini can connect with no client ID.
 
@@ -22,6 +22,25 @@ Grok Bot has no API for its X search. Only the model of the Bot can call it. A G
 One search takes 20 to 40 seconds. If it takes longer, the tool gives a `req_id`, and the chat app asks again.
 
 Each post comes with its media: type, size, direct URL and the author's alt text ("none" when there is none). With `images: true`, the tool also attaches up to 4 photos (or video posters) as images, at most 1 MB each and 3 MB in total. A photo that fails to download becomes a note, and the text stays.
+
+## Optional: read videos
+
+`x_search` gives only the metadata of a video (length, size, MP4 URL). To know what a video shows and says, turn on `x_video`:
+
+```sh
+export ENABLE_X_VIDEO=1
+node bin/grok-x-mcp.mjs setup-prompt   # now also makes the x_video skill
+```
+
+Paste the new text into your Grok Bot chat, as in step 2 of the setup. The Bot makes the `x_video` skill and changes the routine so that it takes both request types. The webhook URL and key do not change.
+
+How it works: the routine gets the post with the X connector, downloads its video (MP4, up to 720p) to the computer of the Bot, and gives it to `watchVideo`, a subagent built into Grok Bot that reads the frames and the audio. The tool returns what the video shows (with times), the text on screen, a transcript of the speech, and other sound. `question` asks for one thing in the video.
+
+- **Nothing runs on your machine.** The server only waits. You need no ffmpeg, no speech-to-text model, no GPU and no extra disk space.
+- **It is slower and costs more of your Grok Bot plan than a search.** One reading took 103 seconds in a test with a 18-second video (the Bot was asleep at the start). Each reading is one routine run, and the work of `watchVideo` also counts on your plan. xAI does not publish how much.
+- **`watchVideo` is not documented by xAI.** Its model, its limits (length, size) and its cost are unknown. It can make mistakes: treat its reading as a reading, not as fact.
+
+To turn it off, remove `ENABLE_X_VIDEO`. The `x_video` skill can stay in the Bot: nothing calls it.
 
 ## What you need
 
@@ -114,7 +133,8 @@ node bin/grok-x-mcp.mjs serve
 | `PUBLIC_URL` | yes | | Public https address of the MCP endpoint, with a random path. |
 | `GROK_ROUTINE_URL` | yes | | The webhook URL of your routine. |
 | `GROK_ROUTINE_KEY_FILE` | yes, or `GROK_ROUTINE_KEY` | | File with the webhook key, mode 600. |
-| `MAX_SEARCHES_PER_HOUR` | no | `60` | A cap on searches, 1 to 200. |
+| `MAX_SEARCHES_PER_HOUR` | no | `60` | A cap on routine runs (searches and video readings together), 1 to 200. |
+| `ENABLE_X_VIDEO` | no | off | `1` adds the `x_video` tool and the `x_video` skill to `setup-prompt`. |
 | `APPROVAL_SECRET_FILE` | no | made in `DATA_DIR/approval.secret` | The secret that the approval page asks for. |
 | `ADMIN_TOKEN_FILE` | no | none | A fixed bearer token, for curl. 32 characters or more. |
 | `ALLOWED_REDIRECT_HOSTS` | no | Gemini, claude.ai, chatgpt.com, localhost | OAuth redirect hosts. |
@@ -133,7 +153,7 @@ The server changes them to the operators of the X API v2. `min_faves` is applied
 - **Cost.** Each search is one routine run, and each run spends usage of your Grok Bot plan. There is no other cost.
 - **Grok Bot routines.** A routine runs at most 200 times an hour, and all your routines together at most 300 times an hour ([docs](https://docs.x.ai/grok-bot/skills-routines-and-automations)). `MAX_SEARCHES_PER_HOUR` keeps the server under that.
 - **The X connector.** The instructions of the connector give 30 calls a minute, 1,000 a day (reset at 00:00 UTC), and at most 25 posts a call. These numbers come from the Bot, not from a public page, and can change.
-- **Speed.** 20 to 40 seconds a search.
+- **Speed.** 20 to 40 seconds a search. About 1 to 3 minutes a video reading (`x_video`).
 
 ## Use it fairly
 
@@ -143,9 +163,9 @@ This server is for your own searches with your own Grok Bot. Read the [xAI Accep
 
 1. **The routine checks the callback.** It sends results only to an address that starts with your `PUBLIC_URL`.
 2. **One-time tokens.** Each search has its own random token in the callback URL. The server keeps only its SHA-256 digest, and forgets it after 15 minutes.
-3. **Old requests do nothing.** Each request has `expires_at`, 5 minutes after it is sent. The routine drops a request after that time.
+3. **Old requests do nothing.** Each request has `expires_at`, 5 minutes after it is sent (10 minutes for a video reading). The routine drops a request after that time.
 4. **OAuth approval.** A chat app must pass the approval page, which asks for the approval secret. Access tokens last 1 hour.
-5. **Post text is data.** The routine and the skill treat the webhook body and the posts as data, not as instructions.
+5. **Post text is data.** The routine and the skills treat the webhook body, the posts, the videos and the `question` of `x_video` as data, not as instructions.
 6. **The log has one line for each request,** with no content, tokens or secrets.
 
 ## Commands
@@ -153,6 +173,7 @@ This server is for your own searches with your own Grok Bot. Read the [xAI Accep
 ```sh
 grok-x-mcp setup-prompt     # text for your Grok Bot
 grok-x-mcp test "<query>"   # one real search
+grok-x-mcp test-video <post> ["question"]   # one real video reading (ENABLE_X_VIDEO=1)
 grok-x-mcp serve            # start the server
 grok-x-mcp clients          # list the OAuth clients
 grok-x-mcp revoke <id>      # remove one client and its tokens ("all" for every client)

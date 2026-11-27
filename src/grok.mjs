@@ -1,4 +1,4 @@
-// X search through a Grok Bot routine.
+// X search (and, when enabled, X video reading) through a Grok Bot routine.
 //
 // Grok Bot has no API for its X connector: only the model of the Bot can call
 // it. A routine with a webhook trigger is the way in:
@@ -9,6 +9,10 @@
 //      connector, and POSTs the result to callback_url.
 //   3. callback() checks the token and stores the result. search() waits for
 //      it, or gives a req_id that the client asks for again.
+//
+// The x_video request works the same way: the routine runs the x_video skill,
+// which gets the video of one post and gives it to the watchVideo subagent of
+// Grok Bot (frames and audio). Nothing runs on this server but the wait.
 //
 // The pending requests live in memory. A restart of the server loses the
 // searches that run at that moment, and nothing else.
@@ -21,6 +25,7 @@ import { fromV2Media } from "./media.mjs";
 
 const KEEP_MS = 15 * 60_000;
 const EXPIRES_MS = 5 * 60_000;
+const VIDEO_EXPIRES_MS = 10 * 60_000;
 const MAX_PENDING = 50;
 
 const sha = (s) => crypto.createHash("sha256").update(String(s)).digest();
@@ -84,6 +89,15 @@ export function flatPost(p, users, media = []) {
 // `routineUrl`, `routineKey`: the webhook of the routine. `callbackUrl`: the
 // public URL of the callback hook. `maxPerHour`: a cap on webhook calls, under
 // the routine limit of Grok Bot (200 runs an hour for one routine).
+// A post id from an id or an x.com / twitter.com status URL.
+export function postId(input) {
+  const s = String(input ?? "").trim();
+  if (/^\d{5,25}$/.test(s)) return s;
+  const m = s.match(/^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/[^/?#]+\/status(?:es)?\/(\d{5,25})/i);
+  if (!m) throw new Error('"post" is a post id or an x.com status URL, such as https://x.com/NASA/status/2125641758432284978');
+  return m[1];
+}
+
 export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 60, fetch = globalThis.fetch, now = () => Date.now() }) {
   const pending = new Map();
   const sent = [];
@@ -94,30 +108,21 @@ export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 6
     while (sent.length && t - sent[0] > 3_600_000) sent.shift();
   }
 
-  // Starts one search. Returns its req_id.
-  async function start({ query, feed = "latest", limit = 20, cursor }) {
+  // Sends one request to the routine. Returns its req_id.
+  async function send(type, payload, extra, expiresMs) {
     sweep();
-    if (sent.length >= maxPerHour) throw new Error(`This server sent ${maxPerHour} searches in the last hour, its limit (MAX_SEARCHES_PER_HOUR). Try again later.`);
-    if ([...pending.values()].filter((r) => r.status === "pending").length >= MAX_PENDING) throw new Error("Too many searches are running. Try again in a minute.");
-    const v2 = toV2(query, now());
+    if (sent.length >= maxPerHour) throw new Error(`This server sent ${maxPerHour} requests in the last hour, its limit (MAX_SEARCHES_PER_HOUR). Try again later.`);
+    if ([...pending.values()].filter((r) => r.status === "pending").length >= MAX_PENDING) throw new Error("Too many requests are running. Try again in a minute.");
     const reqId = `gx-${now()}-${crypto.randomBytes(4).toString("hex")}`;
     const token = crypto.randomBytes(24).toString("base64url");
-    const q = {
-      q: v2.q,
-      max_results: Math.max(10, Math.min(25, v2.minFaves ? 25 : limit)),
-      sort_order: feed === "top" ? "relevancy" : "recency",
-      ...(v2.start && { start_time: v2.start }),
-      ...(v2.end && { end_time: v2.end }),
-      ...(cursor && { next_token: cursor }),
-    };
     const body = {
-      type: "x_search",
+      type,
       req_id: reqId,
-      expires_at: isoSeconds(now() + EXPIRES_MS),
-      queries: [q],
+      expires_at: isoSeconds(now() + expiresMs),
+      ...payload,
       callback_url: `${callbackUrl}?req=${encodeURIComponent(reqId)}&token=${token}`,
     };
-    const entry = { at: now(), tokenHash: sha(token), query, minFaves: v2.minFaves, status: "pending", result: null, error: null, waiters: [] };
+    const entry = { at: now(), tokenHash: sha(token), type, status: "pending", result: null, error: null, waiters: [], ...extra };
     pending.set(reqId, entry);
     let r;
     try {
@@ -140,6 +145,28 @@ export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 6
     return reqId;
   }
 
+  // Starts one search. Returns its req_id.
+  async function start({ query, feed = "latest", limit = 20, cursor }) {
+    const v2 = toV2(query, now());
+    const q = {
+      q: v2.q,
+      max_results: Math.max(10, Math.min(25, v2.minFaves ? 25 : limit)),
+      sort_order: feed === "top" ? "relevancy" : "recency",
+      ...(v2.start && { start_time: v2.start }),
+      ...(v2.end && { end_time: v2.end }),
+      ...(cursor && { next_token: cursor }),
+    };
+    return send("x_search", { queries: [q] }, { query, minFaves: v2.minFaves }, EXPIRES_MS);
+  }
+
+  // Starts the reading of the video of one post. Returns its req_id.
+  // `question`: an optional focus, such as "what does the chart at the end show".
+  async function startVideo({ post, question }) {
+    const id = postId(post);
+    const q = String(question ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+    return send("x_video", { post_id: id, ...(q && { question: q }) }, { postId: id }, VIDEO_EXPIRES_MS);
+  }
+
   // Waits up to `ms` for a result. Returns { status: "done", posts, cursor },
   // { status: "pending" }, { status: "error", error } or { status: "unknown" }.
   async function wait(reqId, ms) {
@@ -160,11 +187,33 @@ export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 6
   function view(r) {
     if (r.status === "pending") return { status: "pending" };
     if (r.status === "error") return { status: "error", error: r.error };
+    if (r.type === "x_video") return videoView(r);
     const res = r.result?.results?.[0];
     if (!r.result?.ok || !res?.ok) return { status: "error", error: [res?.error ?? r.result?.error ?? "unknown error", res?.detail ?? r.result?.detail].filter(Boolean).join(": ") };
     const users = res.includes?.users ?? [];
     const posts = (Array.isArray(res.data) ? res.data : []).map((p) => flatPost(p, users, res.includes?.media ?? [])).filter((p) => (p.likes ?? 0) >= r.minFaves);
     return { status: "done", posts, cursor: res.meta?.next_token ?? null };
+  }
+
+  function videoView(r) {
+    const v = r.result ?? {};
+    if (!v.ok) return { status: "error", error: [v.error ?? "unknown error", v.detail].filter(Boolean).join(": ") };
+    const str = (x) => (typeof x === "string" ? x : "");
+    return {
+      status: "done",
+      video: {
+        postId: r.postId,
+        url: str(v.post?.url) || `https://x.com/i/status/${r.postId}`,
+        author: str(v.post?.author),
+        text: str(v.post?.text),
+        durationMs: Number.isFinite(v.video?.duration_ms) ? v.video.duration_ms : null,
+        visual: str(v.visual),
+        onScreenText: str(v.on_screen_text),
+        transcript: str(v.transcript),
+        audio: str(v.audio),
+        answer: str(v.answer),
+      },
+    };
   }
 
   // The hook for the routine: POST <callbackUrl>?req=…&token=… with the result.
@@ -188,5 +237,5 @@ export function createGrok({ routineUrl, routineKey, callbackUrl, maxPerHour = 6
     return { status: 200, body: { ok: true } };
   }
 
-  return { start, wait, callback, pending };
+  return { start, startVideo, wait, callback, pending };
 }

@@ -1,4 +1,5 @@
-// Puts the parts together: the Grok Bot client, the x_search tool, the MCP server.
+// Puts the parts together: the Grok Bot client, the x_search tool, the optional
+// x_video tool (ENABLE_X_VIDEO=1), the MCP server.
 import fs from "node:fs";
 import { createServer, ToolError } from "./rpc.mjs";
 import { createGrok } from "./grok.mjs";
@@ -37,6 +38,24 @@ async function format(r, query, images, fetchImpl) {
   const next = r.cursor ? `Next page: call x_search with the same query and cursor "${r.cursor}".` : "";
   const body = [`${r.posts.length} posts:`, ...r.posts.map((p) => formatPost(p, att.attached)), ...att.notes, next].filter(Boolean).join("\n");
   return { content: [{ type: "text", text: body }, ...att.images], isError: false };
+}
+
+const VIDEO_INSTRUCTIONS =
+  " x_video reads the video of one post (what it shows, the text on screen, the speech) through the watchVideo subagent of Grok Bot. " +
+  "It takes about 1 to 3 minutes: when it says that the reading still runs, call it again with only req_id. Report only what it returned.";
+
+export function formatVideo(v) {
+  const dur = v.durationMs ? ` · ${Math.round(v.durationMs / 1000)} s` : "";
+  return [
+    `Video of @${v.author || "?"}${dur} · ${v.url}`,
+    v.text && `Post text: ${v.text.replace(/\s+/g, " ").trim()}`,
+    v.answer && `Answer to the question:\n${v.answer}`,
+    v.visual && `What the video shows:\n${v.visual}`,
+    v.onScreenText && `Text on screen:\n${v.onScreenText}`,
+    `Speech (transcript):\n${v.transcript || "(no speech)"}`,
+    v.audio && `Other sound:\n${v.audio}`,
+    "Source: the watchVideo subagent of Grok Bot. It can make mistakes: quote it as its reading, not as fact.",
+  ].filter(Boolean).join("\n\n");
 }
 
 export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }) {
@@ -99,6 +118,44 @@ export function createApp({ config, fetch = globalThis.fetch, waitMs = WAIT_MS }
     },
   };
 
-  const server = createServer({ tools: [xSearch], instructions: INSTRUCTIONS, serverInfo: { name: "grok-x-mcp", version: packageVersion() } });
-  return { server, grok, tools: [xSearch] };
+  const xVideo = {
+    name: "x_video",
+    title: "Read an X video",
+    description:
+      "Reads the video of one X post through Grok Bot: what it shows (scene by scene, with times), the text on screen, the speech as a transcript, and other sound. " +
+      "Give the post as an id or an x.com status URL. question (optional) asks for one thing in the video. It takes about 1 to 3 minutes. " +
+      "If the result says that the reading still runs, call again with only req_id. Use x_search first to find the post when you have no link.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        post: { type: "string", description: "The post id, or its x.com status URL. Required unless req_id is given." },
+        question: { type: "string", description: "Optional. One thing to look for in the video, such as \"what does the chart at the end show\". At most 500 characters." },
+        req_id: { type: "string", description: "The req_id of a reading that still runs. Give only this to get its result." },
+      },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    async run(args) {
+      const reqId = typeof args.req_id === "string" && args.req_id ? args.req_id : null;
+      const show = (r, id) => {
+        if (r.status === "unknown") throw new ToolError(`No reading has req_id ${id}. Start a new one with post.`);
+        if (r.status === "pending") return `The video reading still runs (req_id ${id}). Call x_video again with req_id "${id}" in about 30 seconds. Do not answer from memory meanwhile.`;
+        if (r.status === "error") throw new ToolError(`The video reading failed: ${r.error}`);
+        return formatVideo(r.video);
+      };
+      if (reqId) return show(await grok.wait(reqId, waitMs), reqId);
+      if (typeof args.post !== "string" || !args.post.trim()) throw new ToolError('Give "post" (a post id or x.com URL), or "req_id" of a reading that still runs.');
+      if (args.question !== undefined && typeof args.question !== "string") throw new ToolError('"question" is text');
+      let id;
+      try {
+        id = await grok.startVideo({ post: args.post, question: args.question });
+      } catch (e) {
+        throw new ToolError(e.message);
+      }
+      return show(await grok.wait(id, waitMs), id);
+    },
+  };
+
+  const tools = config.enableVideo ? [xSearch, xVideo] : [xSearch];
+  const server = createServer({ tools, instructions: INSTRUCTIONS + (config.enableVideo ? VIDEO_INSTRUCTIONS : ""), serverInfo: { name: "grok-x-mcp", version: packageVersion() } });
+  return { server, grok, tools };
 }

@@ -68,8 +68,13 @@ export function loadConfig(env = process.env, { needRoutine = true } = {}) {
   const maxPerHour = Number(env.MAX_SEARCHES_PER_HOUR || 60);
   if (!Number.isInteger(maxPerHour) || maxPerHour < 1 || maxPerHour > 200) throw new Error("MAX_SEARCHES_PER_HOUR is a number from 1 to 200 (Grok Bot runs one routine at most 200 times an hour)");
 
+  // x_video is off unless the owner turns it on: it needs the x_video skill in
+  // the Grok Bot, and each reading spends more of the Grok Bot plan than a search.
+  const enableVideo = ["1", "true", "yes", "on"].includes(String(env.ENABLE_X_VIDEO ?? "").trim().toLowerCase());
+
   return {
     publicUrl,
+    enableVideo,
     route,
     callbackRoute: `${route}/callback`,
     callbackUrl: `${publicUrl}/callback`,
